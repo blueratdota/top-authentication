@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const { Pool } = require("pg");
 const express = require("express");
 const session = require("express-session");
+const pgSession = require("connect-pg-simple")(session);
 const passport = require("passport");
 const LocalStrategy = require("passport-local").Strategy;
 
@@ -15,12 +16,33 @@ const pool = new Pool({
     rejectUnauthorized: false
   }
 });
+// const pgPool = new Pool({
+//   user: process.env.DB_USER, // AWS MASTER USERNAME
+//   password: process.env.DB_PASSWORD, // AWM MASTER PASSWORD
+//   host: process.env.DB_HOSTNAME,
+//   port: process.env.DB_PORT,
+//   database: process.env.DB_SESSION,
+//   ssl: {
+//     rejectUnauthorized: false
+//   }
+// });
 
 const app = express();
 app.set("views", __dirname);
 app.set("view engine", "ejs");
 
-app.use(session({ secret: "cats", resave: false, saveUninitialized: false }));
+app.use(
+  session({
+    secret: "cats",
+    resave: false,
+    saveUninitialized: true,
+    store: new pgSession({
+      pool: pool, // Connection pool
+      tableName: "session" // Use another table-name than the default "session" one
+    }),
+    cookie: { maxAge: 30 * 24 * 60 * 60 * 1000 }
+  })
+);
 app.use(passport.session());
 app.use(express.urlencoded({ extended: false }));
 app.use((req, res, next) => {
